@@ -323,7 +323,7 @@ const openApiSpec = {
           },
           status: {
             type: 'string',
-            enum: ['PENDING', 'CLAIMED', 'IN_PROGRESS', 'COMPLETE', 'FAILED'],
+            enum: ['PENDING', 'CLAIMED', 'RUNNING', 'COMPLETE', 'FAILED'],
           },
           agentId: { type: 'string' },
           agentName: { type: 'string' },

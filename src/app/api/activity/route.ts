@@ -61,16 +61,16 @@ export async function GET(request: NextRequest) {
       // Recently claimed stages
       const claimedStages = await prisma.stage.findMany({
         where: {
-          claimedAt: { not: null },
+          status: 'CLAIMED',
         },
-        orderBy: { claimedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
         take: Math.floor(limit / 3),
         select: {
           id: true,
           name: true,
           agentId: true,
           agentName: true,
-          claimedAt: true,
+          createdAt: true,
           pipeline: {
             select: { topic: true },
           },
@@ -78,21 +78,19 @@ export async function GET(request: NextRequest) {
       })
 
       for (const stage of claimedStages) {
-        if (stage.claimedAt) {
-          activities.push({
-            id: `claim-${stage.id}`,
-            type: 'stage',
-            action: 'claimed',
-            timestamp: stage.claimedAt,
-            details: {
-              stageId: stage.id,
-              stageName: stage.name,
-              agentId: stage.agentId,
-              agentName: stage.agentName,
-              pipelineTopic: stage.pipeline.topic,
-            },
-          })
-        }
+        activities.push({
+          id: `claim-${stage.id}`,
+          type: 'stage',
+          action: 'claimed',
+          timestamp: stage.createdAt,
+          details: {
+            stageId: stage.id,
+            stageName: stage.name,
+            agentId: stage.agentId,
+            agentName: stage.agentName,
+            pipelineTopic: stage.pipeline.topic,
+          },
+        })
       }
 
       // Recently completed stages

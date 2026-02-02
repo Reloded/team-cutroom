@@ -30,11 +30,12 @@ export async function GET(
           orderBy: { name: 'asc' },
         },
         attributions: {
-          select: {
-            agentId: true,
-            agentName: true,
-            stageName: true,
-            percentage: true,
+          include: {
+            stage: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },
@@ -50,7 +51,7 @@ export async function GET(
     // Calculate progress
     const totalStages = pipeline.stages.length
     const completedStages = pipeline.stages.filter(s => s.status === 'COMPLETE').length
-    const inProgressStages = pipeline.stages.filter(s => s.status === 'IN_PROGRESS' || s.status === 'CLAIMED').length
+    const inProgressStages = pipeline.stages.filter(s => s.status === 'RUNNING' || s.status === 'CLAIMED').length
     const pendingStages = pipeline.stages.filter(s => s.status === 'PENDING').length
     const failedStages = pipeline.stages.filter(s => s.status === 'FAILED').length
 
@@ -66,8 +67,8 @@ export async function GET(
       const stage = pipeline.stages.find(s => s.name === stageName)
       if (!stage) return null
 
-      const attribution = pipeline.attributions.find(a => a.stageName === stageName)
-      
+      const attribution = pipeline.attributions.find(a => a.stage.name === stageName)
+
       return {
         name: stageName,
         order: index + 1,
@@ -75,7 +76,6 @@ export async function GET(
         agentId: stage.agentId,
         agentName: stage.agentName,
         contribution: attribution?.percentage || getDefaultContribution(stageName),
-        claimedAt: stage.claimedAt,
         completedAt: stage.completedAt,
         // Estimate remaining time based on average completion
         estimatedMinutes: stage.status === 'PENDING' ? getEstimatedMinutes(stageName) : null,
@@ -113,7 +113,7 @@ export async function GET(
       contributors: pipeline.attributions.map(a => ({
         agentId: a.agentId,
         agentName: a.agentName,
-        stage: a.stageName,
+        stage: a.stage.name,
         contribution: a.percentage,
       })),
     })

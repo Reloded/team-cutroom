@@ -59,6 +59,11 @@ export async function GET(
             status: true,
           },
         },
+        stage: {
+          select: {
+            name: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -83,7 +88,7 @@ export async function GET(
 
     // Calculate pending rewards (from completed pipelines)
     const pendingRewards = attributions
-      .filter(a => a.pipeline.status === 'COMPLETE' && !a.claimed)
+      .filter(a => a.pipeline.status === 'COMPLETE')
       .reduce((sum, a) => sum + (a.percentage || 0), 0)
 
     return NextResponse.json({
@@ -107,9 +112,8 @@ export async function GET(
       attributions: attributions.slice(0, 20).map(a => ({
         pipelineId: a.pipelineId,
         pipelineTopic: a.pipeline.topic,
-        stageName: a.stageName,
+        stageName: a.stage.name,
         percentage: a.percentage,
-        claimed: a.claimed,
         createdAt: a.createdAt,
       })),
     })

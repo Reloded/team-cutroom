@@ -77,7 +77,6 @@ export async function POST(request: NextRequest) {
             status: 'CLAIMED',
             agentId,
             agentName,
-            claimedAt: new Date(),
           },
         })
 

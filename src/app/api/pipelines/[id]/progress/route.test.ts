@@ -25,7 +25,7 @@ const mockPipeline = {
   updatedAt: new Date('2026-02-02'),
   stages: [
     { id: 's1', name: 'RESEARCH', status: 'COMPLETE', agentId: 'a1', agentName: 'Agent1', completedAt: new Date() },
-    { id: 's2', name: 'SCRIPT', status: 'IN_PROGRESS', agentId: 'a2', agentName: 'Agent2', claimedAt: new Date() },
+    { id: 's2', name: 'SCRIPT', status: 'RUNNING', agentId: 'a2', agentName: 'Agent2', claimedAt: new Date() },
     { id: 's3', name: 'VOICE', status: 'PENDING', agentId: null, agentName: null },
     { id: 's4', name: 'MUSIC', status: 'PENDING', agentId: null, agentName: null },
     { id: 's5', name: 'VISUAL', status: 'PENDING', agentId: null, agentName: null },
