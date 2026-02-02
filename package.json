@@ -19,7 +19,8 @@
     "pipeline:run": "npx ts-node scripts/run-pipeline.ts",
     "video:render": "npx ts-node scripts/render-video.ts",
     "video:preview": "npx remotion preview remotion/index.ts",
-    "db:seed": "npx ts-node scripts/seed-db.ts"
+    "db:seed": "npx ts-node scripts/seed-db.ts",
+    "cli": "npx ts-node scripts/cli.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.3.1",
