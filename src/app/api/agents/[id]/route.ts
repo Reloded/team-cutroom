@@ -1,21 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/db/client'
 
+interface RouteContext {
+  params: Promise<{ id: string }>
+}
+
 /**
  * Get Agent Details
  * 
- * GET /api/agents/[id]
+ * GET /api/agents/:id
  * 
- * Returns an agent's profile, completed work, and attribution history.
+ * Returns detailed stats for a specific agent including:
+ * - Completed stages
+ * - Attribution history
+ * - Pending rewards (unclaimed contributions)
+ * - Stage breakdown by type
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: RouteContext
 ) {
   try {
-    const { id: agentId } = await params
-    
-    // Get attributions
+    const { id: agentId } = await context.params
+
+    if (!agentId) {
+      return NextResponse.json(
+        { error: 'Agent ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // Get completed stages
+    const completedStages = await prisma.stage.findMany({
+      where: {
+        agentId,
+        status: 'COMPLETE',
+      },
+      include: {
+        pipeline: {
+          select: {
+            id: true,
+            topic: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: { completedAt: 'desc' },
+    })
+
+    // Get all attributions
     const attributions = await prisma.attribution.findMany({
       where: { agentId },
       include: {
@@ -26,67 +59,57 @@ export async function GET(
             status: true,
           },
         },
-        stage: {
-          select: {
-            name: true,
-          },
-        },
       },
       orderBy: { createdAt: 'desc' },
     })
-    
-    if (attributions.length === 0) {
-      return NextResponse.json(
-        { error: 'Agent not found or has no completed work' },
-        { status: 404 }
-      )
-    }
-    
-    // Calculate stats
-    const totalContribution = attributions.reduce((sum, a) => sum + a.percentage, 0)
-    const stageBreakdown: Record<string, number> = {}
-    
-    for (const attr of attributions) {
-      const stageName = attr.stage.name
-      stageBreakdown[stageName] = (stageBreakdown[stageName] || 0) + 1
-    }
-    
-    // Get recent completed stages
-    const recentStages = await prisma.stage.findMany({
-      where: {
-        agentId,
-        status: 'COMPLETE',
+
+    // Calculate totals
+    const totalContribution = attributions.reduce(
+      (sum, a) => sum + (a.percentage || 0),
+      0
+    )
+
+    // Stage breakdown
+    const stageBreakdown = completedStages.reduce(
+      (acc, stage) => {
+        acc[stage.name] = (acc[stage.name] || 0) + 1
+        return acc
       },
-      include: {
-        pipeline: {
-          select: {
-            topic: true,
-          },
-        },
-      },
-      orderBy: { completedAt: 'desc' },
-      take: 10,
-    })
-    
+      {} as Record<string, number>
+    )
+
+    // Get agent name from most recent attribution
+    const agentName = attributions[0]?.agentName || 'Unknown'
+
+    // Calculate pending rewards (from completed pipelines)
+    const pendingRewards = attributions
+      .filter(a => a.pipeline.status === 'COMPLETE' && !a.claimed)
+      .reduce((sum, a) => sum + (a.percentage || 0), 0)
+
     return NextResponse.json({
-      agentId,
-      agentName: attributions[0].agentName,
+      agent: {
+        id: agentId,
+        name: agentName,
+      },
       stats: {
+        totalStagesCompleted: completedStages.length,
         totalContribution,
-        pipelinesContributed: new Set(attributions.map(a => a.pipelineId)).size,
-        stagesCompleted: attributions.length,
+        pendingRewards,
         stageBreakdown,
       },
-      recentWork: recentStages.map(s => ({
-        stage: s.name,
-        topic: s.pipeline.topic,
-        completedAt: s.completedAt,
+      recentWork: completedStages.slice(0, 10).map(stage => ({
+        stageId: stage.id,
+        stageName: stage.name,
+        pipelineTopic: stage.pipeline.topic,
+        pipelineStatus: stage.pipeline.status,
+        completedAt: stage.completedAt,
       })),
-      attributions: attributions.map(a => ({
+      attributions: attributions.slice(0, 20).map(a => ({
         pipelineId: a.pipelineId,
-        topic: a.pipeline.topic,
-        stageName: a.stage.name,
+        pipelineTopic: a.pipeline.topic,
+        stageName: a.stageName,
         percentage: a.percentage,
+        claimed: a.claimed,
         createdAt: a.createdAt,
       })),
     })
