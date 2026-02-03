@@ -14,6 +14,11 @@ import { bundle } from '@remotion/bundler'
 import { renderMedia, selectComposition } from '@remotion/renderer'
 import path from 'path'
 import fs from 'fs'
+import { fileURLToPath } from 'url'
+
+// ESM compatibility
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // Pipeline output types
 interface PipelineOutput {
