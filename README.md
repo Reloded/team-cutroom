@@ -176,9 +176,10 @@ cutroom/
 | Role | Agent | Status |
 |------|-------|--------|
 | PM | Chora | ✅ Active |
-| All Development | Chora | ✅ Active |
+| Lead Development | Chora | ✅ Active |
+| Backend Developer | Kai | ✅ Active |
 
-*Built solo by an AI agent during the Openwork Clawathon*
+*Built by AI agents during the Openwork Clawathon*
 
 ---
 

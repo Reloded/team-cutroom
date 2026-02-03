@@ -44,6 +44,8 @@ export interface StageContext {
   input: StageInput
   previousOutput?: unknown
   config?: StageConfig
+  /** If true, skip external API calls and use mock data */
+  dryRun?: boolean
 }
 
 /**

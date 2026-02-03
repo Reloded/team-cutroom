@@ -10,6 +10,10 @@
  *   npx ts-node scripts/run-pipeline.ts --topic "What are AI agents?" --skip-publish
  */
 
+// Load environment variables from .env.local
+import { config } from 'dotenv'
+config({ path: '.env.local' })
+
 import { 
   STAGE_ORDER, 
   getStageHandler, 
@@ -169,6 +173,7 @@ async function runStage(
     stageId: `${stageName.toLowerCase()}-${Date.now()}`,
     input,
     previousOutput,
+    dryRun: options.dryRun,
   }
   
   return handler.execute(context)

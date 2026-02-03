@@ -14,6 +14,14 @@ const ResearchInputSchema = z.object({
   description: z.string().optional(),
 })
 
+// Response schema from LLM
+const LLMResearchResponseSchema = z.object({
+  facts: z.array(z.string()).min(3).max(10),
+  hooks: z.array(z.string()).min(2).max(5),
+  targetAudience: z.string(),
+  estimatedDuration: z.number().min(15).max(180),
+})
+
 export const researchStage: StageHandler = {
   name: "RESEARCH",
 
@@ -32,21 +40,18 @@ export const researchStage: StageHandler = {
     try {
       const { topic, description } = context.input as z.infer<typeof ResearchInputSchema>
 
-      // TODO: Integrate with actual web search API (Brave, Exa, etc.)
-      // For now, use LLM to generate research based on topic
-      
       const researchPrompt = `Research the following topic for a short-form video (60 seconds):
 
 Topic: ${topic}
 ${description ? `Additional context: ${description}` : ""}
 
 Provide:
-1. 5-7 key facts about this topic
-2. 3-4 potential video hooks/angles that would grab attention
+1. 5-7 key facts about this topic (accurate, specific, interesting)
+2. 3-4 potential video hooks/angles that would grab attention on social media
 3. The target audience for this content
 4. Suggested video duration (30, 60, or 90 seconds)
 
-Format as JSON with this structure:
+Respond with ONLY valid JSON (no markdown, no explanation) in this exact structure:
 {
   "facts": ["fact1", "fact2", ...],
   "hooks": ["hook1", "hook2", ...],
@@ -54,39 +59,48 @@ Format as JSON with this structure:
   "estimatedDuration": 60
 }`
 
-      // For MVP: Return mock research data
-      // In production: Call OpenAI/Anthropic API with researchPrompt
-      const mockOutput: ResearchOutput = {
+      // Check if OpenAI API key is available
+      const apiKey = process.env.OPENAI_API_KEY
+      
+      let researchData: z.infer<typeof LLMResearchResponseSchema>
+      let modelUsed = "mock"
+      
+      if (apiKey && !context.dryRun) {
+        // Use real OpenAI API
+        try {
+          const response = await callLLM(researchPrompt, apiKey)
+          researchData = LLMResearchResponseSchema.parse(JSON.parse(response))
+          modelUsed = "gpt-4o-mini"
+        } catch (llmError) {
+          console.warn("LLM call failed, falling back to mock:", (llmError as Error).message)
+          researchData = getMockResearch(topic)
+        }
+      } else {
+        // Use mock data
+        researchData = getMockResearch(topic)
+      }
+
+      const output: ResearchOutput = {
         topic,
-        facts: [
-          `${topic} is a rapidly evolving field`,
-          "Key players are investing heavily in this space",
-          "Recent developments have accelerated adoption",
-          "Experts predict significant growth in the next 5 years",
-          "Consumer interest has increased 300% year over year",
-        ],
+        facts: researchData.facts,
         sources: [
           {
-            title: "Industry Report 2024",
-            url: "https://example.com/report",
-            snippet: "Comprehensive analysis of market trends...",
+            title: "AI-Generated Research",
+            url: `https://cutroom.ai/research/${encodeURIComponent(topic)}`,
+            snippet: `Research generated for: ${topic}`,
           },
         ],
-        hooks: [
-          `What if ${topic} changed everything?`,
-          `The truth about ${topic} nobody talks about`,
-          `Why ${topic} matters more than you think`,
-        ],
-        targetAudience: "Tech-savvy professionals aged 25-45 interested in emerging trends",
-        estimatedDuration: 60,
+        hooks: researchData.hooks,
+        targetAudience: researchData.targetAudience,
+        estimatedDuration: researchData.estimatedDuration,
       }
 
       return {
         success: true,
-        output: mockOutput,
+        output,
         metadata: {
           promptUsed: researchPrompt,
-          model: "mock",
+          model: modelUsed,
         },
       }
     } catch (error) {
@@ -99,11 +113,58 @@ Format as JSON with this structure:
   },
 }
 
-// Helper to call LLM API (to be implemented)
-async function callLLM(prompt: string): Promise<string> {
-  // TODO: Implement actual LLM call
-  // Options: OpenAI, Anthropic, local model
-  throw new Error("LLM integration not yet implemented")
+// Helper to call OpenAI API
+async function callLLM(prompt: string, apiKey: string): Promise<string> {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "You are a video content researcher. Always respond with valid JSON only, no markdown formatting.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 1000,
+    }),
+  })
+
+  if (!response.ok) {
+    const error = await response.text()
+    throw new Error(`OpenAI API error: ${response.status} - ${error}`)
+  }
+
+  const data = await response.json()
+  return data.choices[0].message.content
+}
+
+// Mock research data for development/testing
+function getMockResearch(topic: string): z.infer<typeof LLMResearchResponseSchema> {
+  return {
+    facts: [
+      `${topic} is a rapidly evolving field`,
+      "Key players are investing heavily in this space",
+      "Recent developments have accelerated adoption",
+      "Experts predict significant growth in the next 5 years",
+      "Consumer interest has increased 300% year over year",
+    ],
+    hooks: [
+      `What if ${topic} changed everything?`,
+      `The truth about ${topic} nobody talks about`,
+      `Why ${topic} matters more than you think`,
+    ],
+    targetAudience: "Tech-savvy professionals aged 25-45 interested in emerging trends",
+    estimatedDuration: 60,
+  }
 }
 
 // Helper to search web (to be implemented)

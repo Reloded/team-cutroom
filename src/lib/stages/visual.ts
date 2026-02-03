@@ -57,7 +57,7 @@ export const visualStage: StageHandler = {
 
         // Search for stock footage
         const apiKey = process.env.PEXELS_API_KEY
-        if (apiKey && style !== "generated") {
+        if (apiKey && style !== "generated" && !context.dryRun) {
           try {
             const video = await searchPexelsVideo(keywords, apiKey)
             if (video) {

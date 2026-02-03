@@ -22,6 +22,19 @@ const ScriptInputSchema = z.object({
   duration: z.number().optional(),
 })
 
+// LLM response schema for script generation
+const LLMScriptResponseSchema = z.object({
+  hook: z.string(),
+  sections: z.array(z.object({
+    heading: z.string(),
+    content: z.string(),
+    visualCue: z.string(),
+    duration: z.number(),
+  })),
+  cta: z.string(),
+  speakerNotes: z.array(z.string()),
+})
+
 export const scriptStage: StageHandler = {
   name: "SCRIPT",
 
@@ -46,30 +59,37 @@ export const scriptStage: StageHandler = {
       // Calculate word count (~150 words per minute)
       const targetWords = Math.round((targetDuration / 60) * 150)
 
-      // Select best hook
-      const hook = research.hooks[0] || `Let's talk about ${research.topic}`
+      const apiKey = process.env.OPENAI_API_KEY
+      let scriptData: z.infer<typeof LLMScriptResponseSchema>
+      let modelUsed = "rule-based"
 
-      // Generate script sections from facts
-      const sections = generateSections(research.facts, research.topic, targetDuration)
+      if (apiKey && !context.dryRun) {
+        try {
+          const response = await callLLMForScript(research, style, targetDuration, apiKey)
+          scriptData = LLMScriptResponseSchema.parse(JSON.parse(response))
+          modelUsed = "gpt-4o-mini"
+        } catch (llmError) {
+          console.warn("Script LLM call failed, using rule-based:", (llmError as Error).message)
+          scriptData = generateRuleBasedScript(research, targetDuration)
+        }
+      } else {
+        scriptData = generateRuleBasedScript(research, targetDuration)
+      }
 
       // Create full script
       const fullScript = [
-        hook,
-        ...sections.map((s) => s.content),
-        "Follow for more!",
+        scriptData.hook,
+        ...scriptData.sections.map((s) => s.content),
+        scriptData.cta,
       ].join("\n\n")
 
       const output: ScriptOutput = {
-        hook,
-        body: sections,
-        cta: "Follow for more!",
+        hook: scriptData.hook,
+        body: scriptData.sections,
+        cta: scriptData.cta,
         fullScript,
         estimatedDuration: targetDuration,
-        speakerNotes: [
-          "Start with energy - hook needs to grab attention",
-          "Pause briefly between sections",
-          "End with clear call to action",
-        ],
+        speakerNotes: scriptData.speakerNotes,
       }
 
       return {
@@ -79,6 +99,7 @@ export const scriptStage: StageHandler = {
           style,
           targetWords,
           actualWords: countWords(fullScript),
+          model: modelUsed,
         },
       }
     } catch (error) {
@@ -89,6 +110,83 @@ export const scriptStage: StageHandler = {
       }
     }
   },
+}
+
+// Call OpenAI for script generation
+async function callLLMForScript(
+  research: ResearchOutput,
+  style: string,
+  duration: number,
+  apiKey: string
+): Promise<string> {
+  const prompt = `Create a video script for a ${duration}-second ${style} short-form video.
+
+Topic: ${research.topic}
+Target Audience: ${research.targetAudience}
+Key Facts:
+${research.facts.map((f, i) => `${i + 1}. ${f}`).join("\n")}
+
+Hook Options:
+${research.hooks.map((h, i) => `${i + 1}. ${h}`).join("\n")}
+
+Guidelines:
+- Choose or improve the best hook for grabbing attention
+- Create ${Math.ceil(duration / 15)} sections (~15 sec each)
+- Each section should have a visual cue for b-roll selection
+- End with a compelling call to action
+- Include 3-4 speaker notes for delivery
+
+Respond with ONLY valid JSON (no markdown) in this exact structure:
+{
+  "hook": "attention-grabbing opening line",
+  "sections": [
+    {"heading": "section title", "content": "what to say", "visualCue": "what to show", "duration": 15}
+  ],
+  "cta": "call to action",
+  "speakerNotes": ["delivery tip 1", "delivery tip 2"]
+}`
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "You are a professional video scriptwriter for social media. Write engaging, concise scripts. Always respond with valid JSON only.",
+        },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 1500,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`OpenAI API error: ${response.status}`)
+  }
+
+  const data = await response.json()
+  return data.choices[0].message.content
+}
+
+// Rule-based fallback script generation
+function generateRuleBasedScript(research: ResearchOutput, duration: number): z.infer<typeof LLMScriptResponseSchema> {
+  const sections = generateSections(research.facts, research.topic, duration)
+  return {
+    hook: research.hooks[0] || `Let's talk about ${research.topic}`,
+    sections,
+    cta: "Follow for more!",
+    speakerNotes: [
+      "Start with energy - hook needs to grab attention",
+      "Pause briefly between sections",
+      "End with clear call to action",
+    ],
+  }
 }
 
 function generateSections(facts: string[], topic: string, duration: number): ScriptSection[] {

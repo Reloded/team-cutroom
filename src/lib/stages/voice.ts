@@ -45,11 +45,11 @@ export const voiceStage: StageHandler = {
       // Clean script text for TTS (remove visual cues, speaker notes)
       const cleanedText = cleanTextForTTS(script.fullScript)
 
-      // Check for API key
+      // Check for API key and dry run mode
       const apiKey = process.env.ELEVENLABS_API_KEY
-      if (!apiKey) {
-        // Return mock output for development
-        return createMockOutput(cleanedText, script.estimatedDuration)
+      if (!apiKey || context.dryRun) {
+        // Return mock output for development or dry run
+        return createMockOutput(cleanedText, script.estimatedDuration, context.dryRun ? "dry run mode" : "ELEVENLABS_API_KEY not configured")
       }
 
       // Generate speech via ElevenLabs
@@ -141,7 +141,7 @@ async function uploadAudio(buffer: Buffer, pipelineId: string, stageId: string):
   return `https://placeholder.blob.vercel.com/${filename}`
 }
 
-function createMockOutput(text: string, estimatedDuration: number): StageResult {
+function createMockOutput(text: string, estimatedDuration: number, reason: string = "ELEVENLABS_API_KEY not configured"): StageResult {
   const output: VoiceOutput = {
     audioUrl: "https://placeholder.blob.vercel.com/audio/mock.mp3",
     duration: estimatedDuration,
@@ -154,7 +154,7 @@ function createMockOutput(text: string, estimatedDuration: number): StageResult 
     output,
     metadata: {
       mock: true,
-      reason: "ELEVENLABS_API_KEY not configured",
+      reason,
     },
   }
 }
