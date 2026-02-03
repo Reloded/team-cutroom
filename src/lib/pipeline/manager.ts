@@ -1,6 +1,7 @@
 import prisma from '@/lib/db/client'
 import { PipelineStatus, StageStatus, StageName, Pipeline, Stage } from '@prisma/client'
 import { STAGE_WEIGHTS } from '@/lib/stages/types'
+import { VideoTemplate, TemplateCustomization, Platform } from '@/lib/templates'
 
 // Stage execution order
 export const STAGE_ORDER: StageName[] = [
@@ -49,6 +50,91 @@ export async function createPipeline(topic: string, description?: string): Promi
     },
     include: { stages: true }
   })
+}
+
+// Create pipeline with template configuration
+export interface TemplatePipelineOptions {
+  description?: string
+  customization?: TemplateCustomization
+  platforms?: Platform[]
+  targetDuration?: number
+}
+
+export async function createPipelineWithTemplate(
+  topic: string,
+  template: VideoTemplate,
+  options: TemplatePipelineOptions = {}
+): Promise<Pipeline & { stages: Stage[] }> {
+  // Merge template with customization
+  const mergedConfig = {
+    voice: { ...template.voice, ...options.customization?.voice },
+    visuals: { ...template.visuals, ...options.customization?.visuals },
+    audio: { ...template.audio, ...options.customization?.audio },
+    layout: { ...template.layout, ...options.customization?.layout },
+    structure: { ...template.structure, ...options.customization?.structure },
+    platforms: options.platforms || template.platforms,
+    targetDuration: options.targetDuration,
+  }
+
+  return prisma.pipeline.create({
+    data: {
+      topic,
+      description: options.description,
+      status: 'DRAFT',
+      currentStage: 'RESEARCH',
+      templateId: template.id,
+      metadata: mergedConfig as any,
+      stages: {
+        create: STAGE_ORDER.map(name => ({
+          name,
+          status: 'PENDING',
+          // Store relevant config for each stage
+          input: getStageInputFromTemplate(name, mergedConfig) as any,
+        }))
+      }
+    },
+    include: { stages: true }
+  })
+}
+
+// Extract stage-specific config from template
+function getStageInputFromTemplate(stageName: StageName, config: any): Record<string, unknown> {
+  switch (stageName) {
+    case 'RESEARCH':
+      return {
+        structure: config.structure,
+        targetDuration: config.targetDuration,
+      }
+    case 'SCRIPT':
+      return {
+        structure: config.structure,
+        voice: config.voice,
+      }
+    case 'VOICE':
+      return {
+        voice: config.voice,
+      }
+    case 'MUSIC':
+      return {
+        audio: config.audio,
+      }
+    case 'VISUAL':
+      return {
+        visuals: config.visuals,
+      }
+    case 'EDITOR':
+      return {
+        layout: config.layout,
+        visuals: config.visuals,
+      }
+    case 'PUBLISH':
+      return {
+        platforms: config.platforms,
+        layout: config.layout,
+      }
+    default:
+      return {}
+  }
 }
 
 // Start pipeline execution

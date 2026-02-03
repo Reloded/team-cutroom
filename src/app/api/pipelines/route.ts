@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createPipeline, listPipelines } from '@/lib/pipeline/manager'
+import { createPipeline, listPipelines, createPipelineWithTemplate } from '@/lib/pipeline/manager'
+import { getVideoTemplate, TemplatePipelineRequestSchema } from '@/lib/templates'
 
 // GET /api/pipelines - List all pipelines
 export async function GET(request: NextRequest) {
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { topic, description } = body
+    const { topic, description, templateId, customization, platforms, targetDuration } = body
     
     if (!topic) {
       return NextResponse.json(
@@ -36,6 +37,31 @@ export async function POST(request: NextRequest) {
       )
     }
     
+    // If templateId provided, create with template
+    if (templateId) {
+      const template = getVideoTemplate(templateId)
+      if (!template) {
+        return NextResponse.json(
+          { error: `Template not found: ${templateId}` },
+          { status: 404 }
+        )
+      }
+      
+      const pipeline = await createPipelineWithTemplate(
+        topic,
+        template,
+        {
+          description,
+          customization,
+          platforms: platforms || template.platforms,
+          targetDuration,
+        }
+      )
+      
+      return NextResponse.json(pipeline, { status: 201 })
+    }
+    
+    // Otherwise create basic pipeline
     const pipeline = await createPipeline(topic, description)
     
     return NextResponse.json(pipeline, { status: 201 })

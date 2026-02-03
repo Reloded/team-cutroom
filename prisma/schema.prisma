@@ -13,6 +13,8 @@ model Pipeline {
   description  String?
   status       PipelineStatus @default(DRAFT)
   currentStage StageName      @default(RESEARCH)
+  templateId   String?        // Reference to template used
+  metadata     Json?          // Template config and customizations
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   stages       Stage[]
@@ -20,6 +22,7 @@ model Pipeline {
 
   @@index([status])
   @@index([createdAt])
+  @@index([templateId])
 }
 
 model Stage {
