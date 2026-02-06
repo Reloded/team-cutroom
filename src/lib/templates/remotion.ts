@@ -105,11 +105,11 @@ export function templateToRemotionProps(template: VideoTemplate): RemotionTempla
   let ctaText: string | undefined
 
   if (layout.branding) {
-    watermarkUrl = layout.branding.watermarkUrl
+    watermarkUrl = layout.branding.watermark
     watermarkPosition = layout.branding.watermarkPosition
     showEndCard = layout.branding.showEndCard
-    ctaText = layout.branding.ctaStyle === 'text' && structure.cta?.text 
-      ? structure.cta.text 
+    ctaText = layout.branding.ctaStyle === 'text' && structure.cta?.text
+      ? structure.cta.text
       : undefined
   }
 
