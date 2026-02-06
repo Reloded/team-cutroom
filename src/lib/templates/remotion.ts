@@ -165,8 +165,8 @@ export function getBackgroundUrl(visuals: VideoTemplate['visuals']): string | un
     // Use first source from video sources
     return visuals.background.sources?.[0]
   }
-  if (visuals.background.type === 'image') {
-    // Use color for static images (placeholder)
+  // Use color for static backgrounds
+  if (visuals.background.color) {
     return visuals.background.color
   }
   return undefined
