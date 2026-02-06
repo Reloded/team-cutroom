@@ -126,10 +126,10 @@ export function templateToRemotionProps(template: VideoTemplate): RemotionTempla
     }
   }
 
-  // Transition
+  // Transition (transitions is a string enum, not an object)
   const transition: RemotionTemplateProps['transition'] = 
-    visuals.transitions?.type === 'crossfade' ? 'crossfade' :
-    visuals.transitions?.type === 'swipe' ? 'swipe' : 'cut'
+    visuals.transitions === 'crossfade' ? 'crossfade' :
+    visuals.transitions === 'swipe' ? 'swipe' : 'cut'
 
   return {
     visualStyle,
