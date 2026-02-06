@@ -118,11 +118,11 @@ export function templateToRemotionProps(template: VideoTemplate): RemotionTempla
 
   // Color grading
   let colorGrade: RemotionTemplateProps['colorGrade'] | undefined
-  if (visuals.colorGrading) {
+  if (visuals.colorGrade) {
     colorGrade = {
-      warmth: visuals.colorGrading.warmth,
-      saturation: visuals.colorGrading.saturation,
-      vignette: visuals.colorGrading.vignette,
+      warmth: visuals.colorGrade.warmth,
+      saturation: visuals.colorGrade.saturation,
+      vignette: visuals.colorGrade.vignette,
     }
   }
 
