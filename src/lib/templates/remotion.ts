@@ -106,7 +106,12 @@ export function templateToRemotionProps(template: VideoTemplate): RemotionTempla
 
   if (layout.branding) {
     watermarkUrl = layout.branding.watermark
-    watermarkPosition = layout.branding.watermarkPosition
+    // Map position to valid Remotion watermark positions (corners only)
+    const wPos = layout.branding.watermarkPosition
+    watermarkPosition = wPos === 'top-left' ? 'top-left' :
+                        wPos === 'top-right' ? 'top-right' :
+                        wPos === 'bottom-left' ? 'bottom-left' :
+                        wPos === 'bottom-right' ? 'bottom-right' : 'bottom-right'
     showEndCard = layout.branding.showEndCard
     ctaText = layout.branding.ctaStyle === 'text' && structure.cta?.text
       ? structure.cta.text
