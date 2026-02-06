@@ -73,7 +73,10 @@ export function templateToRemotionProps(template: VideoTemplate): RemotionTempla
   if (layout.captions) {
     // Style is now an object with font, fontSize, color, etc.
     captionStyle = 'bold' // Default style
-    captionPosition = layout.captions.position
+    // Map position to valid Remotion values
+    const pos = layout.captions.position
+    captionPosition = pos === 'top' || pos === 'top-left' || pos === 'top-right' ? 'top' :
+                      pos === 'center' || pos === 'center-left' || pos === 'center-right' ? 'center' : 'bottom'
     captionColor = layout.captions.style?.color
     captionStroke = layout.captions.style?.stroke?.color
     captionFont = layout.captions.style?.font
