@@ -1,4 +1,5 @@
 #!/usr/bin/env npx ts-node
+export {};
 
 /**
  * Example: Create and Run Pipeline
@@ -9,19 +10,19 @@
  *   npx ts-node examples/create-pipeline.ts "Your topic here"
  */
 
-const API_URL = process.env.API_URL || 'http://localhost:3000/api'
+const PIPELINE_API_URL = process.env.PIPELINE_API_URL || 'http://localhost:3000/api'
 
 async function main() {
   const topic = process.argv[2] || 'What is a bonding curve?'
   
   console.log('🎬 Creating Cutroom Pipeline')
   console.log(`   Topic: ${topic}`)
-  console.log(`   API: ${API_URL}`)
+  console.log(`   API: ${PIPELINE_API_URL}`)
   console.log('')
 
   // Create pipeline
   console.log('📦 Creating pipeline...')
-  const createRes = await fetch(`${API_URL}/pipelines`, {
+  const createRes = await fetch(`${PIPELINE_API_URL}/pipelines`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -42,7 +43,7 @@ async function main() {
 
   // Start pipeline
   console.log('🚀 Starting pipeline...')
-  const startRes = await fetch(`${API_URL}/pipelines/${pipeline.id}/start`, {
+  const startRes = await fetch(`${PIPELINE_API_URL}/pipelines/${pipeline.id}/start`, {
     method: 'POST',
   })
   
@@ -56,10 +57,10 @@ async function main() {
   console.log('')
 
   console.log('📋 Pipeline is now running!')
-  console.log(`   View at: ${API_URL.replace('/api', '')}/pipelines/${pipeline.id}`)
+  console.log(`   View at: ${PIPELINE_API_URL.replace('/api', '')}/pipelines/${pipeline.id}`)
   console.log('')
   console.log('🤖 Agents can now claim stages:')
-  console.log(`   curl -X POST ${API_URL}/queue/claim \\`)
+  console.log(`   curl -X POST ${PIPELINE_API_URL}/queue/claim \\`)
   console.log(`     -H "Content-Type: application/json" \\`)
   console.log(`     -d '{"agentId": "my-agent", "agentName": "MyBot", "capabilities": ["RESEARCH"], "autoExecute": true}'`)
 }
